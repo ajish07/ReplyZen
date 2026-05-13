@@ -25,4 +25,5 @@ class ChatMessage(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     user_message = Column(Text)
     bot_response = Column(Text)
+    session_id = Column(String, default="default")
     timestamp = Column(DateTime(timezone=True), server_default=func.now())

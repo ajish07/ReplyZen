@@ -25,10 +25,13 @@ async def chat(
     db: AsyncSession = Depends(get_db)
 ):
     try:
-        # Fetch previous conversation history for the current user (last 10 messages)
+        # Fetch previous conversation history for the current user and session (last 10 messages)
         result = await db.execute(
             select(ChatMessage)
-            .where(ChatMessage.user_id == current_user.id)
+            .where(
+                (ChatMessage.user_id == current_user.id) & 
+                (ChatMessage.session_id == message_in.session_id)
+            )
             .order_by(ChatMessage.timestamp.asc())
         )
         past_messages = result.scalars().all()
@@ -61,7 +64,8 @@ async def chat(
     new_message = ChatMessage(
         user_id=current_user.id,
         user_message=message_in.message,
-        bot_response=bot_response
+        bot_response=bot_response,
+        session_id=message_in.session_id
     )
     
     # Update user's last_active
@@ -74,5 +78,32 @@ async def chat(
     return {
         "user_message": message_in.message,
         "bot_response": bot_response,
+        "session_id": new_message.session_id,
         "timestamp": new_message.timestamp
     }
+
+@router.get("/history")
+async def get_history(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(
+        select(ChatMessage)
+        .where(ChatMessage.user_id == current_user.id)
+        .order_by(ChatMessage.timestamp.desc())
+    )
+    messages = result.scalars().all()
+    
+    # Group by session_id
+    sessions = {}
+    for msg in messages:
+        if msg.session_id not in sessions:
+            sessions[msg.session_id] = []
+        sessions[msg.session_id].append({
+            "id": msg.id,
+            "user_message": msg.user_message,
+            "bot_response": msg.bot_response,
+            "timestamp": msg.timestamp
+        })
+        
+    return sessions

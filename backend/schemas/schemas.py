@@ -35,6 +35,7 @@ class UserOut(BaseModel):
 
 class ChatMessageCreate(BaseModel):
     message: str
+    session_id: Optional[str] = "default"
 
 class ForgotPassword(BaseModel):
     email: EmailStr
